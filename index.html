@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>고정비 지출 트래커</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="header">
+        <h1>고정비 지출 트래커</h1>
+        <div class="header-controls">
+            <div class="year-selector-group">
+                <label for="year-selector">년도</label>
+                <select id="year-selector" class="select" aria-label="년도 선택"></select>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="summary" aria-live="polite" aria-atomic="true">
+            <div id="summary-text">완료 0 / 총 0 (0%)</div>
+            <div class="progress">
+                <div id="progress-bar"></div>
+            </div>
+            <div id="summary-amount" class="summary-amount"></div>
+        </div>
+
+        <div class="toolbar">
+            <div class="filter-group">
+                <label for="filter-select" class="sr-only">필터</label>
+                <select id="filter-select" class="select" aria-label="필터 선택">
+                    <option value="all">전체</option>
+                    <option value="unpaid">미지출</option>
+                    <option value="paid">지출완료</option>
+                </select>
+            </div>
+            <div class="sort-group">
+                <label for="sort-select" class="sr-only">정렬</label>
+                <select id="sort-select" class="select" aria-label="정렬 선택">
+                    <option value="name">이름순</option>
+                    <option value="amount">금액순</option>
+                    <option value="status">상태순</option>
+                </select>
+            </div>
+            <div class="search-group">
+                <label for="search-input" class="sr-only">검색</label>
+                <input type="search" id="search-input" class="input" placeholder="항목명 검색" aria-label="항목명 검색">
+            </div>
+        </div>
+
+        <section class="items-section">
+            <h2>항목 목록</h2>
+            <div class="table-wrapper">
+                <table id="expenses-table" class="expenses-table">
+                    <thead>
+                        <tr id="table-header-row">
+                            <th class="col-item-name">학원</th>
+                            <th class="col-amount">월별 금액</th>
+                            <th class="col-note">비고</th>
+                            <!-- 월 헤더가 동적으로 추가됩니다 -->
+                        </tr>
+                    </thead>
+                    <tbody id="items-tbody">
+                        <!-- 동적으로 생성됨 -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="empty-state" class="empty-state" style="display: none;">
+                <p>등록된 항목이 없습니다. 아래에서 항목을 추가해주세요.</p>
+            </div>
+        </section>
+
+        <section class="add-item-section card">
+            <h2>항목 추가</h2>
+            <form id="add-item-form" aria-label="고정비 항목 추가">
+                <div class="form-group">
+                    <label for="item-name">항목명 <span class="required">*</span></label>
+                    <input type="text" id="item-name" class="input" required aria-required="true" placeholder="예: 월세, 통신비">
+                </div>
+                <div class="form-group">
+                    <label for="item-amount">예상 금액 (원)</label>
+                    <input type="number" id="item-amount" class="number" min="0" step="1000" placeholder="선택사항">
+                </div>
+                <div class="form-group">
+                    <label for="item-note">비고</label>
+                    <input type="text" id="item-note" class="input" placeholder="선택사항">
+                </div>
+                <button type="submit" class="btn btn-primary">추가</button>
+            </form>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-controls">
+            <button id="export-btn" class="btn btn-secondary">데이터 내보내기</button>
+            <button id="import-btn" class="btn btn-secondary">데이터 가져오기</button>
+            <input type="file" id="import-file" accept=".json" style="display: none;" aria-label="JSON 파일 선택">
+            <button id="reset-btn" class="btn btn-danger">데이터 초기화</button>
+        </div>
+    </footer>
+
+    <!-- 수정 모달 -->
+    <div id="edit-modal" class="modal-backdrop" role="dialog" aria-labelledby="edit-modal-title" aria-hidden="true">
+        <div class="modal">
+            <h3 id="edit-modal-title">항목 수정</h3>
+            <form id="edit-item-form">
+                <input type="hidden" id="edit-item-id">
+                <div class="form-group">
+                    <label for="edit-item-name">항목명 <span class="required">*</span></label>
+                    <input type="text" id="edit-item-name" class="input" required aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="edit-item-amount">예상 금액 (원)</label>
+                    <input type="number" id="edit-item-amount" class="number" min="0" step="1000">
+                </div>
+                <div class="form-group">
+                    <label for="edit-item-note">비고</label>
+                    <input type="text" id="edit-item-note" class="input">
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">저장</button>
+                    <button type="button" id="cancel-edit-btn" class="btn btn-secondary">취소</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 확인 모달 -->
+    <div id="confirm-modal" class="modal-backdrop" role="dialog" aria-labelledby="confirm-modal-title" aria-hidden="true">
+        <div class="modal">
+            <h3 id="confirm-modal-title">확인</h3>
+            <p id="confirm-message"></p>
+            <div class="modal-actions">
+                <button id="confirm-yes-btn" class="btn btn-danger">확인</button>
+                <button id="confirm-no-btn" class="btn btn-secondary">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 캘린더 뷰 모달 -->
+    <div id="calendar-modal" class="modal-backdrop" role="dialog" aria-labelledby="calendar-modal-title" aria-hidden="true">
+        <div class="modal modal-content-large">
+            <h3 id="calendar-modal-title">지출 상세 정보</h3>
+            <div id="calendar-modal-body">
+                <div class="calendar-info">
+                    <p><strong id="calendar-item-name"></strong> - <span id="calendar-month-year"></span></p>
+                </div>
+                <div class="calendar-container">
+                    <div id="calendar-view" class="calendar-view">
+                        <!-- 동적으로 생성됨 -->
+                    </div>
+                </div>
+                <form id="payment-detail-form" class="payment-detail-form">
+                    <input type="hidden" id="detail-item-id">
+                    <input type="hidden" id="detail-year-month">
+                    <div class="form-group">
+                        <label for="detail-paid-date">지출일</label>
+                        <input type="date" id="detail-paid-date" class="date">
+                    </div>
+                    <div class="form-group">
+                        <label for="detail-months-paid">결제 개월 수</label>
+                        <input type="number" id="detail-months-paid" class="number" min="1" value="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="detail-method">지불 방법</label>
+                        <select id="detail-method" class="select" required>
+                            <option value="신용카드">신용카드</option>
+                            <option value="지역화폐">지역화폐</option>
+                            <option value="계좌이체">계좌이체</option>
+                            <option value="현금">현금</option>
+                            <option value="체크카드">체크카드</option>
+                            <option value="아동수당">아동수당</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="detail-memo">메모</label>
+                        <textarea id="detail-memo" class="textarea" rows="3" placeholder="예: 성남, 레클, KB 등"></textarea>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="detail-is-paid">
+                        <label for="detail-is-paid">지출 완료</label>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="btn btn-primary">저장</button>
+                        <button type="button" id="cancel-calendar-btn" class="btn btn-secondary">취소</button>
+                        <button type="button" id="delete-payment-btn" class="btn btn-danger">삭제</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
